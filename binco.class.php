@@ -49,6 +49,33 @@ class binoco {
 		return $v;
 	}
 
+	public function matchlog($binary,$match,$checksum,$ms,$binlen){
+		$progress = $match/$checksum*100;
+		$duration = microtime(true)-$ms;
+		$eta = (($duration*100) / $progress) - $duration;
+
+		$progress = number_format($progress,6,'.','');
+		$duration = number_format($duration,7,'.','');
+		$eta = gmdate('H:i:s',$eta).substr(number_format(fmod($eta,1),5,'.',''),1);
+
+		if($binlen<40){
+			$this->display([
+				'[bin] '.$binary,
+				'[match] '.sprintf('%'.strlen($checksum).'s',$match).'/'.$checksum,
+				'[progress] '.sprintf('%10s',$progress).'%',
+				'[runtime] '.sprintf('%14s',$duration).'s',
+				'[eta] '.$eta
+			]);
+		} else {
+			$this->display([
+				'[match] '.sprintf('%'.strlen($checksum).'s',$match).'/'.$checksum,
+				'[progress] '.sprintf('%10s',$progress).'%',
+				'[runtime] '.sprintf('%12s',$duration).'s',
+				'[eta] '.$eta
+			]);
+		}
+	}
+
 	public function process($output=1,$callback=false){
 		if(!$this->n || !$this->r || !$this->pool) return false;
 		if(!$output) $output = 0;
@@ -80,24 +107,17 @@ class binoco {
 			if($output==1){
 				$binlen = strlen($binary);
 				//--- throttling output to improve performance
-					if(strlen($binary)<60){
-						$progress = number_format($match/$checksum*100,6,'.','');
-						$duration = number_format(microtime(true)-$ms,7,'.','');
-
-						if(strlen($binary)<40){
-							$this->display([
-								'[bin] '.$binary,
-								'[match] '.sprintf('%'.strlen($checksum).'s',$match).'/'.$checksum,
-								'[progress] '.sprintf('%10s',$progress).'%',
-								'[runtime] '.sprintf('%14s',$duration).'s'
-							]);
-						} elseif($match%100000==0){
-							$this->display([
-								'[match] '.sprintf('%'.strlen($checksum).'s',$match).'/'.$checksum,
-								'[progress] '.sprintf('%10s',$progress).'%',
-								'[runtime] '.sprintf('%14s',$duration).'s'
-							]);
+					if($binlen<40) $this->matchlog($binary,$match,$checksum,$ms,$binlen);
+					else {
+						$out = false;
+						if($binlen<80){
+							if($match%100000==0) $out = true;
+						} elseif($binlen>=100){
+							if($match%10000000==0) $out = true;
+						} elseif($binlen>=80){
+							if($match%1000000==0) $out = true;
 						}
+						if($out) $this->matchlog(false,$match,$checksum,$ms,$binlen);
 					}
 				//--- throttling output to improve performance
 			}
@@ -142,5 +162,4 @@ class binoco {
 		return $i;		
 	}
 }
-
 ?>
